@@ -1,0 +1,24 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Launch Current Directory Package",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            
+            // 核心设置：
+            // "${fileDirname}" 代表当前打开文件所在的目录。
+            // 当你在 01_hello/hello.go 中启动调试时，它就是 "basic/01_hello"。
+            // 调试器会尝试构建并运行这个目录中的 main 包。
+            "program": "${fileDirname}", 
+
+            // 🌟 关键设置：用于解决 fmt.Scanf() 交互输入问题
+            // 将调试输出和输入重定向到 VS Code 的集成终端。
+            "console": "integratedTerminal", 
+            
+            // 可选：如果 Go 程序的启动目录很重要，可以使用这个。
+            // "cwd": "${workspaceFolder}"
+        }
+    ]
+}
