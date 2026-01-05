@@ -2,30 +2,52 @@ package poker
 
 import (
 	"bufio"
+	"fmt"
 	"io"
+	"strconv"
 	"strings"
 )
 
+const PlayerPrompt = "Please enter the number of players: "
+const BadPlayerInputErrMsg = "Bad value received for number of players, please try again with a number"
+const BadWinnerInputMsg = "invalid winner input, expect format of 'PlayerName wins'"
+
 type CLI struct {
-	playerStore PlayerStore
-	in          *bufio.Scanner
+	in   *bufio.Scanner
+	out  io.Writer
+	game Game
 }
 
-func NewCLI(playerStore PlayerStore, in io.Reader) *CLI {
+func NewCLI(in io.Reader, out io.Writer, game Game) *CLI {
 	return &CLI{
-		playerStore,
-		bufio.NewScanner(in),
+		in:   bufio.NewScanner(in),
+		out:  out,
+		game: game,
 	}
 }
 
 func (cli *CLI) PlayPoker() {
-	userInput := cli.readLine()
-	cli.playerStore.RecordWin(extractWinner(userInput))
+	fmt.Fprint(cli.out, PlayerPrompt)
+
+	numberOfPlayersInput := cli.readLine()
+	numberOfPlayers, err := strconv.Atoi(strings.Trim(numberOfPlayersInput, "\n"))
+	if err != nil {
+		fmt.Fprint(cli.out, BadPlayerInputErrMsg)
+		return
+	}
+
+	cli.game.Start(numberOfPlayers)
+
+	winnerInput := cli.readLine()
+	winner := extractWinner(winnerInput)
+
+	cli.game.Finish(winner)
 }
 
-func extractWinner(input string) string {
-	return strings.Replace(input, " wins", "", 1)
+func extractWinner(userInput string) string {
+	return strings.Replace(userInput, " wins", "", 1)
 }
+
 func (cli *CLI) readLine() string {
 	cli.in.Scan()
 	return cli.in.Text()
