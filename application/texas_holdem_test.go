@@ -3,6 +3,7 @@ package poker_test
 import (
 	"bytes"
 	poker "golang-learning/application"
+	"io"
 	"strings"
 
 	"testing"
@@ -14,7 +15,7 @@ func TestGame_Start(t *testing.T) {
 		blindAlerter := &poker.SpyBlindAlerter{}
 		game := poker.NewTexasHoldem(blindAlerter, dummyPlayerStore)
 
-		game.Start(5)
+		game.Start(5, io.Discard)
 
 		cases := []poker.ScheduledAlert{
 			{At: 0 * time.Second, Amount: 100},
@@ -37,7 +38,7 @@ func TestGame_Start(t *testing.T) {
 		blindAlerter := &poker.SpyBlindAlerter{}
 		game := poker.NewTexasHoldem(blindAlerter, dummyPlayerStore)
 
-		game.Start(7)
+		game.Start(7, io.Discard)
 
 		cases := []poker.ScheduledAlert{
 			{At: 0 * time.Second, Amount: 100},
@@ -47,40 +48,6 @@ func TestGame_Start(t *testing.T) {
 		}
 
 		checkSchedulingCases(cases, t, blindAlerter)
-	})
-
-	t.Run("it prompts the user to enter the number of players and starts the game", func(t *testing.T) {
-		stdout := &bytes.Buffer{}
-		in := strings.NewReader("7\n")
-		game := &GameSpy{}
-
-		cli := poker.NewCLI(in, stdout, game)
-		cli.PlayPoker()
-
-		gotPrompt := stdout.String()
-		wantPrompt := poker.PlayerPrompt
-
-		if gotPrompt != wantPrompt {
-			t.Errorf("got %q, want %q", gotPrompt, wantPrompt)
-		}
-
-		if game.StartedWith != 7 {
-			t.Errorf("wanted Start called with 7 but got %d", game.StartedWith)
-		}
-	})
-
-	t.Run("it prints an error when a non numeric value is entered for number of players", func(t *testing.T) {
-		stdout := &bytes.Buffer{}
-		in := strings.NewReader("Pies\n")
-		game := &GameSpy{}
-
-		cli := poker.NewCLI(in, stdout, game)
-		cli.PlayPoker()
-
-		if game.StartedCalled {
-			t.Errorf("game should not have started")
-		}
-		assertMessagesSentToUser(t, stdout, poker.PlayerPrompt, poker.BadPlayerInputErrMsg)
 	})
 }
 
@@ -99,23 +66,11 @@ func checkSchedulingCases(cases []poker.ScheduledAlert, t *testing.T, blindAlert
 			if len(blindAlerter.Alerts) <= i {
 				t.Fatalf("alert %d was not scheduled %v", i, blindAlerter.Alerts)
 			}
+
+			got := blindAlerter.Alerts[i]
+			assertScheduledAlert(t, got, want)
 		})
 	}
-}
-
-type GameSpy struct {
-	StartedWith   int
-	FinishedWith  string
-	StartedCalled bool
-}
-
-func (g *GameSpy) Start(numberOfPlayers int) {
-	g.StartedWith = numberOfPlayers
-	g.StartedCalled = true
-}
-
-func (g *GameSpy) Finish(winner string) {
-	g.FinishedWith = winner
 }
 
 func assertMessagesSentToUser(t testing.TB, stdout *bytes.Buffer, messages ...string) {
