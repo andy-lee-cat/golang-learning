@@ -17,6 +17,7 @@ import (
 
 var (
 	dummyGame = &GameSpy{}
+	tenMs     = 10 * time.Millisecond
 )
 
 func TestGETPlayers(t *testing.T) {
@@ -115,9 +116,11 @@ func TestGame(t *testing.T) {
 		assertStatus(t, response.Code, http.StatusOK)
 	})
 
-	t.Run("start a game with 3 players and declare Ruth the winner", func(t *testing.T) {
-		game := &GameSpy{}
+	t.Run("start a game with 3 players, send some blind alerts down WS and declare Ruth the winner", func(t *testing.T) {
+		wantedBlindAlert := "Blind is 100"
 		winner := "Ruth"
+
+		game := &GameSpy{BlindAlert: []byte(wantedBlindAlert)}
 		server := httptest.NewServer(mustMakePlayerServer(t, dummyPlayerStore, game))
 		ws := mustDialWS(t, "ws"+strings.TrimPrefix(server.URL, "http")+"/ws")
 
@@ -126,9 +129,10 @@ func TestGame(t *testing.T) {
 
 		writeWSMessage(t, ws, "3")
 		writeWSMessage(t, ws, winner)
-		time.Sleep(10 * time.Millisecond)
+
 		assertGameStartedWith(t, game, 3)
 		assertFinishCalledWith(t, game, winner)
+		within(t, tenMs, func() { assertWebsocketGotMsg(t, ws, wantedBlindAlert) })
 	})
 }
 
@@ -212,5 +216,29 @@ func assertContentType(t testing.TB, response *httptest.ResponseRecorder, want s
 	t.Helper()
 	if response.Result().Header.Get("content-type") != want {
 		t.Errorf("response did not have content-type of %s, got %v", want, response.Result().Header)
+	}
+}
+
+func within(t testing.TB, d time.Duration, assert func()) {
+	t.Helper()
+
+	done := make(chan struct{}, 1)
+
+	go func() {
+		assert()
+		done <- struct{}{}
+	}()
+
+	select {
+	case <-time.After(d):
+		t.Error("timed out")
+	case <-done:
+	}
+}
+
+func assertWebsocketGotMsg(t *testing.T, ws *websocket.Conn, want string) {
+	_, msg, _ := ws.ReadMessage()
+	if string(msg) != want {
+		t.Errorf(`got "%s", want "%s"`, string(msg), want)
 	}
 }

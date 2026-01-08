@@ -4,4 +4,4 @@ go 1.24.3
 
 require github.com/approvals/go-approval-tests v1.6.2
 
-require github.com/gorilla/websocket v1.5.3 // indirect
+require github.com/gorilla/websocket v1.5.3
